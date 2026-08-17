@@ -1,10 +1,11 @@
 from typing import Optional
-from pydantic import BaseModel, Field, ConfigDict, field_validator
+
+from pydantic import BaseModel, Field, ConfigDict
 
 
-# =========================
-# Rule Schemas
-# =========================
+# ============================================================
+# RULE SCHEMAS
+# ============================================================
 
 class RuleCreate(BaseModel):
     keyword: str
@@ -16,12 +17,14 @@ class RuleResponse(BaseModel):
     keyword: str
     dm_message: str
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True
+    )
 
 
-# =========================
-# Stats Schema
-# =========================
+# ============================================================
+# STATS SCHEMA
+# ============================================================
 
 class StatsResponse(BaseModel):
     sent: int
@@ -30,17 +33,23 @@ class StatsResponse(BaseModel):
     duplicates_blocked: int
 
 
-# =========================
-# Event / Job Schemas
-# =========================
+# ============================================================
+# EVENT RESPONSE
+# ============================================================
 
 class EventResponse(BaseModel):
     id: int
     event_id: str
     event_type: str
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True
+    )
 
+
+# ============================================================
+# JOB RESPONSE
+# ============================================================
 
 class JobResponse(BaseModel):
     id: int
@@ -52,27 +61,44 @@ class JobResponse(BaseModel):
     retry_count: int
     dm_id: Optional[str] = None
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True
+    )
 
 
-# =========================
-# Webhook Schemas
-# =========================
+# ============================================================
+# WEBHOOK USER
+# ============================================================
 
 class WebhookUser(BaseModel):
     user_id: str
     username: Optional[str] = None
 
 
+# ============================================================
+# WEBHOOK DATA
+# ============================================================
+
 class WebhookData(BaseModel):
     comment_id: Optional[str] = None
     post_id: Optional[str] = None
     text: Optional[str] = None
     created_at: Optional[str] = None
-    from_: Optional[WebhookUser] = Field(default=None, alias="from")
 
-    model_config = ConfigDict(populate_by_name=True)
+    # JSON uses "from", but Python cannot use "from"
+    from_: Optional[WebhookUser] = Field(
+        default=None,
+        alias="from"
+    )
 
+    model_config = ConfigDict(
+        populate_by_name=True
+    )
+
+
+# ============================================================
+# WEBHOOK EVENT
+# ============================================================
 
 class WebhookEvent(BaseModel):
     event_id: str
