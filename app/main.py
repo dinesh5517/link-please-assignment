@@ -251,15 +251,78 @@ def get_rules(
             "required": True,
             "content": {
                 "application/json": {
-                    "schema": WebhookEvent.model_json_schema()
+                    "schema": {
+                        "type": "object",
+                        "required": [
+                            "event_id",
+                            "event_type",
+                            "data"
+                        ],
+                        "properties": {
+                            "event_id": {
+                                "type": "string",
+                                "example": "loom_demo_001"
+                            },
+                            "event_type": {
+                                "type": "string",
+                                "example": "comment.created"
+                            },
+                            "sent_at": {
+                                "type": "string",
+                                "nullable": True,
+                                "example": "2026-08-17T22:00:00Z"
+                            },
+                            "data": {
+                                "type": "object",
+                                "required": [],
+                                "properties": {
+                                    "comment_id": {
+                                        "type": "string",
+                                        "nullable": True,
+                                        "example": "loom_comment_001"
+                                    },
+                                    "post_id": {
+                                        "type": "string",
+                                        "nullable": True,
+                                        "example": "loom_post_001"
+                                    },
+                                    "text": {
+                                        "type": "string",
+                                        "nullable": True,
+                                        "example": "Can you send me the link?"
+                                    },
+                                    "created_at": {
+                                        "type": "string",
+                                        "nullable": True,
+                                        "example": "2026-08-17T22:00:00Z"
+                                    },
+                                    "from": {
+                                        "type": "object",
+                                        "nullable": True,
+                                        "properties": {
+                                            "user_id": {
+                                                "type": "string",
+                                                "example": "loom_user_001"
+                                            },
+                                            "username": {
+                                                "type": "string",
+                                                "nullable": True,
+                                                "example": "loom_user"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
-            },
+            }
         }
-    },
+    }
 )
 async def webhook(
     request: Request,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db)
 ):
     # ========================================================
     # READ RAW REQUEST BODY
