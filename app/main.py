@@ -6,6 +6,8 @@ from dotenv import load_dotenv
 # Load environment variables from .env (local development)
 load_dotenv()
 from typing import List, Dict, Any
+from collections import deque
+from datetime import datetime
 from fastapi import FastAPI, Depends, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
@@ -141,6 +143,10 @@ async def webhook(
 ):
     raw_body = await request.body()
 
+    # Record recent webhook handling attempts (in-memory, non-persistent)
+    if not hasattr(app.state, "recent_webhooks"):
+        app.state.recent_webhooks = deque(maxlen=200)
+
     # Part B: Webhook Signature Verification
     signature_header = request.headers.get("X-PseudoGram-Signature")
     if signature_header:
@@ -165,7 +171,21 @@ async def webhook(
         except Exception:
             computed_b64 = ""
 
-        if not (hmac.compare_digest(sig, computed_hex) or hmac.compare_digest(sig, computed_b64)):
+        matched = (hmac.compare_digest(sig, computed_hex) or hmac.compare_digest(sig, computed_b64))
+
+        # Save a short debug record (do not store secrets)
+        try:
+            app.state.recent_webhooks.appendleft({
+                "time": datetime.utcnow().isoformat() + "Z",
+                "header_sig": signature_header,
+                "computed_hex": computed_hex,
+                "computed_b64": computed_b64,
+                "matched": bool(matched),
+            })
+        except Exception:
+            pass
+
+        if not matched:
             raise HTTPException(status_code=401, detail="Invalid webhook signature")
 
     # Parse body
@@ -308,3 +328,10 @@ def get_job(job_id: int, db: Session = Depends(get_db)):
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     return job
+
+
+@app.get('/debug/recent_webhooks')
+def recent_webhooks():
+    """Return recent webhook signature checks for debugging (no secrets returned)."""
+    entries = list(getattr(app.state, "recent_webhooks", []))
+    return entries
