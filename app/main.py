@@ -144,13 +144,28 @@ async def webhook(
     # Part B: Webhook Signature Verification
     signature_header = request.headers.get("X-PseudoGram-Signature")
     if signature_header:
-        expected_sig = signature_header.replace("sha256=", "")
-        computed_sig = hmac.new(
+        sig = signature_header
+        if sig.startswith("sha256="):
+            sig = sig[len("sha256="):]
+
+        # Compute both hex and base64 HMACs to accept either encoding from the sender
+        computed_hex = hmac.new(
             PSEUDOGRAM_API_KEY.encode("utf-8"),
             raw_body,
             hashlib.sha256
         ).hexdigest()
-        if not hmac.compare_digest(expected_sig, computed_sig):
+        computed_raw = hmac.new(
+            PSEUDOGRAM_API_KEY.encode("utf-8"),
+            raw_body,
+            hashlib.sha256
+        ).digest()
+        try:
+            import base64
+            computed_b64 = base64.b64encode(computed_raw).decode()
+        except Exception:
+            computed_b64 = ""
+
+        if not (hmac.compare_digest(sig, computed_hex) or hmac.compare_digest(sig, computed_b64)):
             raise HTTPException(status_code=401, detail="Invalid webhook signature")
 
     # Parse body
@@ -205,8 +220,8 @@ async def webhook(
             db.commit()
         return {"message": "comment.deleted event processed"}
 
-    # 3. Process comment.created
-    if event.event_type != "comment.created":
+    # 3. Process comment.created or comment.accepted
+    if event.event_type not in ("comment.created", "comment.accepted"):
         return {"message": "unhandled event type ignored"}
 
     if not event.data.text or not event.data.from_:
