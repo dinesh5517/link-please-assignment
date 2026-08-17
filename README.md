@@ -1,122 +1,130 @@
-# Link-Please
 🚀 LinkPlease — PseudoGram Automation API
 
 <p align="center">
-  <img src="https://img.shields.io/badge/FastAPI-Backend-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI">
-  <img src="https://img.shields.io/badge/Python-3.x-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python">
-  <img src="https://img.shields.io/badge/SQLite-Database-003B57?style=for-the-badge&logo=sqlite&logoColor=white" alt="SQLite">
-  <img src="https://img.shields.io/badge/Render-Deployed-46E3B7?style=for-the-badge&logo=render&logoColor=black" alt="Render">
+  <img src="https://img.shields.io/badge/FastAPI-Backend-009688?style=for-the-badge&logo=fastapi&logoColor=white">
+  <img src="https://img.shields.io/badge/Python-3.x-3776AB?style=for-the-badge&logo=python&logoColor=white">
+  <img src="https://img.shields.io/badge/SQLite-Database-003B57?style=for-the-badge&logo=sqlite&logoColor=white">
+  <img src="https://img.shields.io/badge/Render-Live-46E3B7?style=for-the-badge&logo=render&logoColor=black">
 </p>
 
 <p align="center">
   <b>Keyword-based comment-to-DM automation backend built with FastAPI.</b>
 </p>
 
-🔗 Live Project Links
+🔗 1. Project Links
 
-Resource
+🔎 Resource
 
-Link
+🔗 Link
 
 🌐 Live API
 
-🔵 Open Live API
+Open Live API
 
-📚 Swagger API Docs
+📚 Swagger Documentation
 
-🟢 Open Swagger /docs
+Open /docs
 
 📊 Live Statistics
 
-🟠 Open /stats
+Open /stats
 
-🐙 GitHub Repository
+📋 Rules
 
-⚫ Open GitHub Repository
-
-📋 API Rules
-
-🟣 Open /rules
+Open /rules
 
 📨 Events
 
-🔵 Open /events
+Open /events
 
 ⚙️ Jobs
 
-🟡 Open /jobs
+Open /jobs
 
-🎯 Project Overview
+🐙 GitHub Repository
 
-LinkPlease is a FastAPI backend that automatically sends a direct message when a user's comment contains a configured keyword.
+Open GitHub
 
-Example
+📌 2. Project Overview
 
-A rule can be created as:
+LinkPlease is a FastAPI backend that automates direct messages based on keywords found in user comments.
 
-{
-  "keyword": "link",
-  "dm_message": "Here's your link!"
-}
+Basic workflow
 
-When a user comments:
-
-Can you send me the link?
-
-the system:
-
-Comment
-   ↓
-Webhook
-   ↓
-HMAC-SHA256 verification
-   ↓
-Event deduplication
-   ↓
-Keyword matching
-   ↓
-DM job queued
-   ↓
-Background worker
-   ↓
+User Comment
+     ↓
+POST /webhook
+     ↓
+HMAC Signature Verification
+     ↓
+Event Deduplication
+     ↓
+Keyword Rule Matching
+     ↓
+DM Job Created
+     ↓
+Background Worker
+     ↓
 PseudoGram API
-   ↓
-Delivery reconciliation
-   ↓
+     ↓
+Delivery Reconciliation
+     ↓
 Delivered / Retry / Failed
 
-✨ Features
+🅰️ 3. Part A — Core Automation
 
-🅰️ Part A — Core Automation
+3.1 Create a Rule
+
+Endpoint
 
 POST /rules
 
-Creates a keyword automation rule.
+A rule contains:
 
-Example:
+keyword
+
+dm_message
+
+Example
 
 {
   "keyword": "link",
   "dm_message": "Here's your link!"
 }
 
+If a comment contains:
+
+Can you send me the link?
+
+the backend identifies the keyword link and creates a DM job.
+
+3.2 Webhook
+
+Endpoint
+
 POST /webhook
 
-Receives comment events and checks them against all configured rules.
+The webhook receives comment events from PseudoGram.
 
-Matching is:
+Supported comment events include:
 
-✅ Case-insensitive
+comment.created
+comment.accepted
+comment.deleted
 
-✅ Database-backed
+For a matching comment, a job is stored in the database with:
 
-✅ Processed asynchronously
+status = queued
 
-✅ Protected against duplicate DMs
+The webhook returns quickly while the worker handles the actual DM.
+
+3.3 Statistics
+
+Endpoint
 
 GET /stats
 
-Returns:
+Example:
 
 {
   "sent": 1,
@@ -125,71 +133,85 @@ Returns:
   "duplicates_blocked": 0
 }
 
-🔐 Part B — Webhook Security
+Statistics meaning
 
-Every signed webhook can use:
+Field
 
-X-PseudoGram-Signature: sha256=<hex>
+Meaning
 
-The backend calculates:
+sent
 
-HMAC-SHA256(raw_request_body, API_KEY)
+Sent or delivered DMs
 
-and compares the result using a secure comparison.
+failed
 
-Security behavior
+Permanently failed jobs
 
-Valid signature
-      ↓
-   Process
+queued
 
-Invalid signature
-      ↓
-401 Unauthorized
+Jobs waiting/processing
 
-The raw request body is verified before JSON processing so that the signature represents the exact received payload.
+duplicates_blocked
 
-♻️ Part C — Delivery Reconciliation
+Duplicate DM attempts prevented
 
-A successful API acceptance does not necessarily mean the DM was delivered.
+🛡️ 4. Deduplication
 
-The worker tracks the returned DM ID and checks its status.
+The same user should not receive the same rule's DM repeatedly.
 
-202 Accepted
-     ↓
-Poll DM status
-     ↓
- ┌───────────────┐
- │               │
-Delivered      Failed
- │               │
- ↓               ↓
-Complete       Retry
-                 │
-                 ↓
-             Up to 3
-
-This prevents silently losing messages after an API-side failure.
-
-🛡️ Deduplication
-
-The database protects against duplicate DMs using the combination:
+The database protects the combination:
 
 (user_id, rule_id)
 
-Therefore, if the same user comments multiple times with the same keyword, the same rule will not send the DM repeatedly.
+Example
 
-Duplicate attempts are recorded in:
+User comments "link"
+        ↓
+DM sent
 
-BlockedDuplicate
+Same user comments "link" again
+        ↓
+Duplicate blocked
 
-and exposed through:
+The duplicate attempt is recorded and counted in:
 
-GET /stats
+duplicates_blocked
 
-📨 Duplicate Event Protection
+🔐 5. Part B — Webhook Security
 
-Each incoming webhook contains an:
+Every webhook can be verified using:
+
+X-PseudoGram-Signature: sha256=<hex>
+
+The server calculates:
+
+HMAC-SHA256(
+    raw_request_body,
+    PSEUDOGRAM_API_KEY
+)
+
+and compares it with the received signature.
+
+Security flow
+
+Webhook Request
+      ↓
+Read raw body
+      ↓
+Verify HMAC-SHA256
+      ↓
+ ┌───────────────┐
+ │               │
+Valid           Invalid
+ │               │
+ ↓               ↓
+Process         401
+
+This prevents forged or modified webhook requests from being processed.
+
+🔄 6. Duplicate Event Protection
+
+Every event contains:
 
 event_id
 
@@ -201,9 +223,38 @@ If the same event is received again:
   "message": "duplicate event ignored"
 }
 
-This protects the system from repeated webhook deliveries.
+This protects the application from repeated webhook deliveries.
 
-🗑️ Deleted Comment Handling
+♻️ 7. Part C — Delivery Reconciliation
+
+A 202 Accepted response from the external DM API does not necessarily mean that the DM was ultimately delivered.
+
+The worker therefore checks the DM status after submission.
+
+Flow
+
+DM submitted
+     ↓
+202 Accepted
+     ↓
+Store dm_id
+     ↓
+Poll DM status
+     ↓
+ ┌───────────────┐
+ │               │
+DELIVERED       FAILED
+ │               │
+ ↓               ↓
+Complete       Re-queue
+                 ↓
+               Retry
+                 ↓
+              Up to 3
+
+This prevents silently losing failed messages.
+
+🗑️ 8. Deleted Comment Handling
 
 The backend handles:
 
@@ -211,94 +262,88 @@ comment.deleted
 
 events.
 
-If the comment is deleted before the DM is sent
+Deleted before DM
 
-The queued job is cancelled.
+Comment deleted
+      ↓
+Queued job cancelled
 
-If the DM has already been sent
+Deleted after DM
 
-The message cannot be recalled from the external API, so this behavior is documented as a known limitation.
+If the DM has already reached the external API, it cannot be recalled.
 
-🚦 Rate Limiting
+This limitation is documented in FAILURES.md.
 
-The background worker uses a sliding-window rate limiter.
+🚦 9. Rate Limiting
 
-Configured limit:
+The worker uses a sliding-window rate limiter.
 
-10 DMs / 60 seconds
+Current limit
 
-The worker also handles API throttling using the API's retry information when available.
+10 DMs per rolling 60 seconds
 
-🧵 Background Processing
+The system also handles API throttling and can back off when the external API returns rate-limit information.
 
-The webhook endpoint returns quickly while the actual DM work is performed by the background worker.
+🧵 10. Background Worker
 
-Main components:
+The webhook does not perform the complete DM operation synchronously.
 
-app/main.py
-    ↓
-Webhook + API routes
+Instead:
 
-app/worker.py
-    ↓
-Background job processing
+Webhook
+   ↓
+Create DMJob
+   ↓
+Return response
+   ↓
+Background Worker
+   ↓
+Send DM
+   ↓
+Reconcile status
 
-app/services/dm_service.py
-    ↓
-PseudoGram API communication
+This keeps webhook processing fast and allows jobs to be retried.
 
-app/models.py
-    ↓
-Database models
-
-app/schemas.py
-    ↓
-Pydantic request/response validation
-
-app/database.py
-    ↓
-Database connection
-
-🗂️ Project Structure
+🗂️ 11. Project Structure
 
 link-please-assignment/
 │
 ├── app/
-│   ├── main.py
-│   ├── worker.py
-│   ├── database.py
-│   ├── models.py
-│   ├── schemas.py
+│   ├── main.py              # FastAPI routes and webhook handling
+│   ├── worker.py            # Background job processing
+│   ├── database.py          # Database configuration
+│   ├── models.py            # SQLAlchemy database models
+│   ├── schemas.py           # Pydantic schemas
 │   │
 │   └── services/
-│       └── dm_service.py
+│       └── dm_service.py    # PseudoGram API communication
 │
 ├── requirements.txt
 ├── README.md
 └── FAILURES.md
 
-🧪 Testing the API
+🧪 12. Live Testing
 
-1. Create a Rule
+Step 1 — Create a Rule
 
 Open:
 
-🟢 Swagger API Docs
+👉 Swagger /docs
 
-Use:
+Select:
 
 POST /rules
 
-Request:
+Use:
 
 {
   "keyword": "link",
   "dm_message": "Here's your link!"
 }
 
-2. Send a Webhook
+Step 2 — Send a Webhook
 
-Use:
+Select:
 
 POST /webhook
 
@@ -320,28 +365,29 @@ Example payload:
   }
 }
 
-3. Check Statistics
+Note: If signature verification is enabled, the request must also contain a valid X-PseudoGram-Signature header.
+
+Step 3 — Check the Result
 
 Open:
 
-🟠 Live /stats
+👉 Live /stats
 
-Example:
+You can also inspect:
 
-{
-  "sent": 1,
-  "failed": 0,
-  "queued": 0,
-  "duplicates_blocked": 0
-}
+Rules
 
-📡 API Endpoints
+Events
+
+Jobs
+
+📡 13. API Reference
 
 Method
 
 Endpoint
 
-Purpose
+Description
 
 🟢 GET
 
@@ -365,13 +411,13 @@ List rules
 
 /webhook
 
-Receive comment webhook
+Receive webhook events
 
 🟣 GET
 
 /stats
 
-Live DM statistics
+View live statistics
 
 🔵 GET
 
@@ -389,7 +435,7 @@ View DM jobs
 
 /jobs/{job_id}
 
-View one DM job
+View a specific job
 
 ⚪ GET
 
@@ -397,82 +443,69 @@ View one DM job
 
 Debug webhook signatures
 
-🏗️ Technology Stack
+🏗️ 14. Architecture
 
-🐍 Python
+                   ┌─────────────────────┐
+                   │     PseudoGram      │
+                   │   Comment Event     │
+                   └──────────┬──────────┘
+                              │
+                              ▼
+                   ┌─────────────────────┐
+                   │    POST /webhook    │
+                   └──────────┬──────────┘
+                              │
+                              ▼
+                   ┌─────────────────────┐
+                   │ HMAC Verification   │
+                   └──────────┬──────────┘
+                              │
+                              ▼
+                   ┌─────────────────────┐
+                   │ Event Deduplication │
+                   └──────────┬──────────┘
+                              │
+                              ▼
+                   ┌─────────────────────┐
+                   │  Keyword Matching   │
+                   └──────────┬──────────┘
+                              │
+                              ▼
+                   ┌─────────────────────┐
+                   │     SQLite DB       │
+                   │   DMJob = queued    │
+                   └──────────┬──────────┘
+                              │
+                              ▼
+                   ┌─────────────────────┐
+                   │ Background Worker   │
+                   └──────────┬──────────┘
+                              │
+                              ▼
+                   ┌─────────────────────┐
+                   │  PseudoGram DM API  │
+                   └──────────┬──────────┘
+                              │
+                              ▼
+                   ┌─────────────────────┐
+                   │   Reconciliation    │
+                   └──────┬───────┬──────┘
+                          │       │
+                          ▼       ▼
+                     Delivered   Failed
+                                  │
+                                  ▼
+                                Retry
 
-⚡ FastAPI
+⚖️ 15. Engineering Tradeoff
 
-🧩 Pydantic
+Current approach
 
-🗄️ SQLite
+The rate limiter stores timestamps in memory.
 
-🧱 SQLAlchemy
+Advantages
 
-🔐 HMAC-SHA256
-
-🧵 Background worker thread
-
-☁️ Render
-
-🐙 GitHub
-
-📊 Architecture
-
-                 ┌─────────────────────┐
-                 │   PseudoGram Event  │
-                 └──────────┬──────────┘
-                            │
-                            ▼
-                 ┌─────────────────────┐
-                 │ POST /webhook       │
-                 └──────────┬──────────┘
-                            │
-                    HMAC Verification
-                            │
-                            ▼
-                 ┌─────────────────────┐
-                 │ Event Deduplication │
-                 └──────────┬──────────┘
-                            │
-                            ▼
-                 ┌─────────────────────┐
-                 │ Keyword Rule Match  │
-                 └──────────┬──────────┘
-                            │
-                            ▼
-                 ┌─────────────────────┐
-                 │ SQLite DM Job       │
-                 │ status = queued     │
-                 └──────────┬──────────┘
-                            │
-                            ▼
-                 ┌─────────────────────┐
-                 │ Background Worker   │
-                 └──────────┬──────────┘
-                            │
-                            ▼
-                 ┌─────────────────────┐
-                 │ PseudoGram DM API   │
-                 └──────────┬──────────┘
-                            │
-                            ▼
-                 ┌─────────────────────┐
-                 │ Reconciliation      │
-                 └──────┬───────┬──────┘
-                        │       │
-                   Delivered   Failed
-                        │       │
-                        ▼       ▼
-                     Done     Retry
-
-⚖️ Engineering Tradeoff
-
-The current rate limiter keeps request timestamps in memory.
-
-Advantage
-
-Simple
+Simple implementation
 
 No additional infrastructure
 
@@ -482,58 +515,96 @@ Easy to maintain
 
 Limitation
 
-If the container restarts, the in-memory sliding window is reset.
+A container restart clears the in-memory timestamps.
 
-A production-scale implementation could use:
+Production improvement
 
-Redis
+Use Redis for distributed and persistent rate limiting.
 
-for distributed and persistent rate limiting.
-
-🚀 Future Improvements
+🚀 16. Future Improvements
 
 With additional development time:
 
 🔴 Replace the in-memory rate limiter with Redis.
 
-🟣 Replace the daemon worker thread with Celery or another durable job queue.
+🟣 Replace the daemon thread with a durable queue such as Celery.
 
-🧪 Add integration tests using a local PseudoGram API mock.
+🧪 Add integration tests with a local PseudoGram mock.
 
 📦 Add dead-letter queue support.
 
 📈 Add structured monitoring and metrics.
 
-🔁 Add more robust exponential backoff.
+🔁 Add stronger exponential backoff.
 
 🔒 Restrict debug endpoints in production.
 
-📹 Demo
+🛠️ 17. Technology Stack
 
-The live deployment can be demonstrated through:
+Technology
 
-🌐 Live API
+Purpose
 
-🔵 https://link-please-assignment.onrender.com/
+🐍 Python
 
-📚 Swagger
+Backend language
 
-🟢 https://link-please-assignment.onrender.com/docs
+⚡ FastAPI
 
-📊 Statistics
+REST API framework
 
-🟠 https://link-please-assignment.onrender.com/stats
+🧩 Pydantic
+
+Request/response validation
+
+🗄️ SQLite
+
+Persistent database
+
+🧱 SQLAlchemy
+
+ORM
+
+🔐 HMAC-SHA256
+
+Webhook security
+
+🧵 Background Thread
+
+Asynchronous job processing
+
+☁️ Render
+
+Deployment
+
+🐙 GitHub
+
+Source control
+
+📹 18. Demo & Submission
+
+🌐 Live Application
+
+Open Live API
+
+📚 API Documentation
+
+Open Swagger
+
+📊 Live Statistics
+
+Open Stats
 
 🐙 Source Code
 
-⚫ https://github.com/dinesh5517/link-please-assignment
+Open GitHub Repository
 
 👨‍💻 Author
 
 Dinesh
 
-Built for the Tech Intern / LinkPlease Backend Assignment.
+LinkPlease Backend — Tech Intern Assignment
 
 <p align="center">
-  <b>🚀 FastAPI • Webhooks • HMAC • Background Jobs • Retry • Reconciliation</b>
+  <b>⚡ FastAPI • 🔐 Secure Webhooks • 🧵 Background Jobs • ♻️ Retry • 📊 Reconciliation</b>
 </p>
